@@ -1,156 +1,132 @@
 from fastmcp import FastMCP
 import os
-import sqlite3
+import aiosqlite  
+import tempfile
 
-DB_PATH = os.path.join(os.path.dirname(__file__),"expenses.db")
+TEMP_DIR = tempfile.gettempdir()
+DB_PATH = os.path.join(TEMP_DIR, "expenses.db")
+CATEGORIES_PATH = os.path.join(os.path.dirname(__file__), "categories.json")
 
-CATEGORIES_PATH = os.path.join(os.path.dirname(__file__),"categories.json")
-
+print(f"Database path: {DB_PATH}")
 
 mcp = FastMCP("ExpenseTracker")
-def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS expenses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL,
-                amount REAL NOT NULL,
-                category TEXT NOT NULL,
-                subcategory TEXT DEFAULT NULL,
-                note TEXT DEFAULT NULL
-            )
-        """)
-        conn.commit()
+
+def init_db():  
+    try:
+        
+        import sqlite3
+        with sqlite3.connect(DB_PATH) as c:
+            c.execute("PRAGMA journal_mode=WAL")
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS expenses(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    category TEXT NOT NULL,
+                    subcategory TEXT DEFAULT '',
+                    note TEXT DEFAULT ''
+                )
+            """)
+            
+            c.execute("INSERT OR IGNORE INTO expenses(date, amount, category) VALUES ('2000-01-01', 0, 'test')")
+            c.execute("DELETE FROM expenses WHERE category = 'test'")
+            print("Database initialized successfully with write access")
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        raise
+
 
 init_db()
 
-
-@mcp.tool
-def add_expense(date: str, amount: float, category: str, subcategory: str = "", note: str = ""):
-    """List all expenses from the database"""
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute("INSERT INTO expenses (date, amount, category, subcategory, note) VALUES (?, ?, ?, ?, ?)", 
-                               (date, amount, category, subcategory, note))
-        return {"status": "success", "message": "Expense added successfully", "id": cur.lastrowid}
-
-@mcp.tool
-def get_expenses():
-    """List all expenses from the database"""
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute("SELECT id ,date, amount, category, subcategory, note FROM expenses ORDER BY date DESC")
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
-
-@mcp.tool
-def get_expenses_by_date(start_date: str, end_date: str):
-    """List all expenses from the database by date"""
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute("SELECT id ,date, amount, category, subcategory, note FROM expenses WHERE date BETWEEN ? AND ? ORDER BY date DESC", (start_date, end_date))
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
-
-@mcp.tool
-def update_expense(id: int, date: str, amount: float, category: str, subcategory: str = "", note: str = ""):
-    """Update an expense in the database"""
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("UPDATE expenses SET date = ?, amount = ?, category = ?, subcategory = ?, note = ? WHERE id = ?", (date, amount, category, subcategory, note, id))
-
-@mcp.tool
-def delete_expense(id: int):
-    """Delete an expense from the database"""
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("DELETE FROM expenses WHERE id = ?", (id,))
-        return {"status": "success", "message": "Expense deleted successfully"}
-
-@mcp.tool
-def get_expense_schema():
-    """Get the schema of the expenses table"""
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute("PRAGMA table_info(expenses)")
-        cols = [d[1] for d in cur.fetchall()]
-        return cols
-@mcp.tool
-def get_category_summary_by_date(start_date: str, end_date: str):
-    """Returns total spending grouped by category, sorted highest to lowest."""
-    expenses = get_expenses_by_date(start_date, end_date)
-    if not expenses:
-        return {
-            "highest_spending_category": None,
-            "summary": []
-        }
-    category_totals: dict[str, float] = {}
-    for expense in expenses:
-        cat = expense["category"]
-        category_totals[cat] = category_totals.get(cat, 0) + expense["amount"]
-    sorted_summary = sorted(
-        [{"category": cat, "total": round(total, 2)} for cat, total in category_totals.items()],
-        key=lambda x: x["total"],
-        reverse=True
-    )
-    return {
-        "highest_spending_category": sorted_summary[0]["category"],
-        "total_categories": len(sorted_summary),
-        "summary": sorted_summary
-    }
+@mcp.tool()
+async def add_expense(date, amount, category, subcategory="", note=""): 
+    '''Add a new expense entry to the database.'''
+    try:
+        async with aiosqlite.connect(DB_PATH) as c:  # Changed: added async
+            cur = await c.execute(  # Changed: added await
+                "INSERT INTO expenses(date, amount, category, subcategory, note) VALUES (?,?,?,?,?)",
+                (date, amount, category, subcategory, note)
+            )
+            expense_id = cur.lastrowid
+            await c.commit()  # Changed: added await
+            return {"status": "success", "id": expense_id, "message": "Expense added successfully"}
+    except Exception as e:  # Changed: simplified exception handling
+        if "readonly" in str(e).lower():
+            return {"status": "error", "message": "Database is in read-only mode. Check file permissions."}
+        return {"status": "error", "message": f"Database error: {str(e)}"}
+    
+@mcp.tool()
+async def list_expenses(start_date, end_date):  # Changed: added async
+    '''List expense entries within an inclusive date range.'''
+    try:
+        async with aiosqlite.connect(DB_PATH) as c:  # Changed: added async
+            cur = await c.execute(  # Changed: added await
+                """
+                SELECT id, date, amount, category, subcategory, note
+                FROM expenses
+                WHERE date BETWEEN ? AND ?
+                ORDER BY date DESC, id DESC
+                """,
+                (start_date, end_date)
+            )
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r)) for r in await cur.fetchall()]  # Changed: added await
+    except Exception as e:
+        return {"status": "error", "message": f"Error listing expenses: {str(e)}"}
 
 @mcp.tool()
-def get_category_summary() -> dict:
-    """Returns total spending grouped by category, sorted highest to lowest."""
+async def summarize(start_date, end_date, category=None):  # Changed: added async
+    '''Summarize expenses by category within an inclusive date range.'''
+    try:
+        async with aiosqlite.connect(DB_PATH) as c:  # Changed: added async
+            query = """
+                SELECT category, SUM(amount) AS total_amount, COUNT(*) as count
+                FROM expenses
+                WHERE date BETWEEN ? AND ?
+            """
+            params = [start_date, end_date]
 
-    expenses = get_expenses()  
+            if category:
+                query += " AND category = ?"
+                params.append(category)
 
-    if not expenses:
-        return {
-            "highest_spending_category": None,
-            "summary": []
+            query += " GROUP BY category ORDER BY total_amount DESC"
+
+            cur = await c.execute(query, params)  # Changed: added await
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r)) for r in await cur.fetchall()]  # Changed: added await
+    except Exception as e:
+        return {"status": "error", "message": f"Error summarizing expenses: {str(e)}"}
+
+@mcp.resource("expense:///categories", mime_type="application/json")  # Changed: expense:// → expense:///
+def categories():
+    try:
+        # Provide default categories if file doesn't exist
+        default_categories = {
+            "categories": [
+                "Food & Dining",
+                "Transportation",
+                "Shopping",
+                "Entertainment",
+                "Bills & Utilities",
+                "Healthcare",
+                "Travel",
+                "Education",
+                "Business",
+                "Other"
+            ]
         }
+        
+        try:
+            with open(CATEGORIES_PATH, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            import json
+            return json.dumps(default_categories, indent=2)
+    except Exception as e:
+        return f'{{"error": "Could not load categories: {str(e)}"}}'
 
-    category_totals: dict[str, float] = {}
-    for expense in expenses:
-        cat = expense["category"]
-        category_totals[cat] = category_totals.get(cat, 0) + expense["amount"]
-
-    sorted_summary = sorted(
-        [{"category": cat, "total": round(total, 2)} for cat, total in category_totals.items()],
-        key=lambda x: x["total"],
-        reverse=True
-    )
-
-    return {
-        "highest_spending_category": sorted_summary[0]["category"],
-        "total_categories": len(sorted_summary),
-        "summary": sorted_summary
-    }
-
-
-@mcp.tool
-def commit_changes():
-    """Commit changes to the database"""
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.commit()
-        return {"status": "success", "message": "Changes committed successfully"}
-
-@mcp.tool
-def rollback_changes():
-    """Rollback changes to the database"""
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.rollback()
-        return {"status": "success", "message": "Changes rolled back successfully"}
-
-#Adding categories so that any ai agent dont add categories that are not in the categories.json file
-#prevents random categories being added to the database and inconsistant categories being added to the database
-
-
-@mcp.resource("expenses://categories", mime_type="application/json")
-def get_categories():
-    """Get all categories from the database"""
-    with open(CATEGORIES_PATH, "r") as f:
-        return f.read()  
-
-
-
-
-
+# Start the server
 if __name__ == "__main__":
-    mcp.run(transport="http" , host="0.0.0.0", port=8000)
-
+    mcp.run(transport="http", host="0.0.0.0", port=8000)
+    # mcp.run()
