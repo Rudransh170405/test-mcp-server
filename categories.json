@@ -1,0 +1,100 @@
+{
+    "categories": [
+      {
+        "id": 1,
+        "name": "Food",
+        "icon": "🍽️",
+        "subcategories": [
+          { "id": 101, "name": "Restaurants" },
+          { "id": 102, "name": "Groceries" },
+          { "id": 103, "name": "Cafes & Coffee" },
+          { "id": 104, "name": "Street Food" },
+          { "id": 105, "name": "Food Delivery" }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Travel",
+        "icon": "✈️",
+        "subcategories": [
+          { "id": 201, "name": "Flights" },
+          { "id": 202, "name": "Taxi & Cab" },
+          { "id": 203, "name": "Metro & Bus" },
+          { "id": 204, "name": "Hotel & Stay" },
+          { "id": 205, "name": "Fuel" }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Utilities",
+        "icon": "💡",
+        "subcategories": [
+          { "id": 301, "name": "Electricity" },
+          { "id": 302, "name": "Water" },
+          { "id": 303, "name": "Internet" },
+          { "id": 304, "name": "Gas" },
+          { "id": 305, "name": "Mobile Recharge" }
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Entertainment",
+        "icon": "🎬",
+        "subcategories": [
+          { "id": 401, "name": "Streaming" },
+          { "id": 402, "name": "Movies & Theatre" },
+          { "id": 403, "name": "Gaming" },
+          { "id": 404, "name": "Concerts & Events" },
+          { "id": 405, "name": "Books & Magazines" }
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Shopping",
+        "icon": "🛍️",
+        "subcategories": [
+          { "id": 501, "name": "Clothing" },
+          { "id": 502, "name": "Electronics" },
+          { "id": 503, "name": "Groceries" },
+          { "id": 504, "name": "Home & Furniture" },
+          { "id": 505, "name": "Personal Care" }
+        ]
+      },
+      {
+        "id": 6,
+        "name": "Health",
+        "icon": "🏥",
+        "subcategories": [
+          { "id": 601, "name": "Doctor & Consultation" },
+          { "id": 602, "name": "Medicines" },
+          { "id": 603, "name": "Gym & Fitness" },
+          { "id": 604, "name": "Lab Tests" },
+          { "id": 605, "name": "Insurance" }
+        ]
+      },
+      {
+        "id": 7,
+        "name": "Education",
+        "icon": "📚",
+        "subcategories": [
+          { "id": 701, "name": "Tuition & Courses" },
+          { "id": 702, "name": "Books & Stationery" },
+          { "id": 703, "name": "Online Subscriptions" },
+          { "id": 704, "name": "School & College Fees" },
+          { "id": 705, "name": "Workshops & Seminars" }
+        ]
+      },
+      {
+        "id": 8,
+        "name": "Finance",
+        "icon": "💰",
+        "subcategories": [
+          { "id": 801, "name": "EMI & Loan" },
+          { "id": 802, "name": "Insurance Premium" },
+          { "id": 803, "name": "Investments" },
+          { "id": 804, "name": "Bank Charges" },
+          { "id": 805, "name": "Tax" }
+        ]
+      }
+    ]
+  }
